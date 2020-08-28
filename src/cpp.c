@@ -1350,7 +1350,9 @@ subst(p,sp) register char *p; struct symtab *sp; {
 static char *
 trmdir(s) register char *s; {
 	register char *p = s;
-	while (*p++); --p; while (p>s && *--p!='/');
+	while (*p++);
+	--p;
+	while (p>s && *--p!='/');
 # if unix
 	if (p==s) *p++='.';
 # endif
