@@ -1,78 +1,60 @@
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License, Version 1.0 only
-# (the "License").  You may not use this file except in compliance
-# with the License.
-#
-# You can obtain a copy of the license at COPYING
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at COPYING.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
-#
-# Copyright (c) 2012 Joyent Inc.
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# http://www.illumos.org/license/CDDL.
 #
 
-include ../Makefile.defs
+#
+# Copyright 2020 Oxide Computer Company
+#
 
-PROG =		cpp$(STRAP)
-PROGDIR =	/usr/lib
+TOP :=			$(PWD)
 
-OBJS = \
-	cpp.o$(STRAP) \
-	y.tab.o$(STRAP)
+PROG =			cpp
+INSTALL_DIR =		/usr/lib
 
-CLEANFILES += \
-	y.tab.c$(STRAP)
+OBJS =			cpp.o y.tab.o
+OBJDIR =		obj
 
-CERRWARN=	-Wall -Wextra
-CERRWARN +=	-Wno-unknown-pragmas
-CERRWARN +=	-Wno-sign-compare
-CERRWARN +=	-Wno-unused-label
-CFLAGS +=	-O2 $(CERRWARN)
-LD =		$(GCC)
+CERRWARN =		-Wall -Wextra -Werror \
+			-Wno-unknown-pragmas \
+			-Wno-sign-compare \
+			-Wno-unused-label
+CFLAGS +=		-m32 -O2 $(CERRWARN) -I$(TOP)/src
 
-COMPILE.c =	$(GCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
-LINK.prog =	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
-PROTOFILES =	$(DESTDIR)$(PROGDIR)/$(PROG)
+CC =			gcc
+YACC =			yacc
 
+.PHONY: all
 all: $(PROG)
 
-install: $(PROTOFILES)
+.PHONY: install
+install: all
+	/usr/bin/mkdir -p $(DESTDIR)$(INSTALL_DIR)
+	/usr/bin/rm -f $(DESTDIR)$(INSTALL_DIR)/$(PROG)
+	/usr/bin/cp cpp $(DESTDIR)$(INSTALL_DIR)/$(PROG)
+	/usr/bin/chmod 0755 $(DESTDIR)$(INSTALL_DIR)/$(PROG)
 
+.PHONY: clean
 clean:
-	-rm -f $(OBJS) $(CLEANFILES) $(PROG) *strap
+	/usr/bin/rm -rf $(PROG) $(OBJDIR)
 
-$(PROG): $(OBJS)
-	$(LINK.prog)
+$(PROG): $(OBJS:%=$(OBJDIR)/%)
+	$(CC) $(CFLAGS) -o $@ $^
 
-%.o$(STRAP): %.c
-	$(COMPILE.c)
+$(OBJDIR)/%.o: src/%.c | $(OBJDIR)
+	$(CC) -c $(CFLAGS) -o $@ $^
 
-y.tab.o$(STRAP): yylex.c
+$(OBJDIR)/%.o: obj/%.c | $(OBJDIR)
+	$(CC) -c $(CFLAGS) -o $@ $^
 
-#
-# We need to distinguish between the cpp build in the bootstrap and the cpp
-# built normally. However, when we install it, they need to have the same name.
-# To handle this we add a small bit of shell logic. Note that the mv bit is
-# explicitly ignored and instead we do a final check to make sure we have
-# something called cpp at the very end which will either be because of install
-# or because of the later mv.
-#
-$(DESTDIR)$(PROGDIR)/%: %
-	mkdir -p $(DESTDIR)$(PROGDIR)
-	/usr/sbin/install -m 0755 -f $(DESTDIR)$(PROGDIR) $(PROG)
-	-[ "$(PROG)" == "cppstrap" ] && mv -f $(DESTDIR)$(PROGDIR)/$(PROG) \
-	    $(DESTDIR)$(PROGDIR)/cpp
-	[ -f "$(DESTDIR)$(PROGDIR)/cpp" ]
+$(OBJDIR):
+	@/usr/bin/mkdir -p $@
 
-y.tab.c: cpy.y
-	$(YACC) cpy.y
+$(OBJDIR)/y.tab.c: $(TOP)/src/cpy.y
+	cd $(@D) && $(YACC) $<
