@@ -1568,6 +1568,7 @@ main(argc,argv)
 	if (! nopredef) {
 	ysysloc=stsym("unix");
 	ysysloc=stsym("sun");
+	ysysloc=stsym("__illumos__");
 # if __sparc__
 	varloc=stsym ("sparc");
 # endif
